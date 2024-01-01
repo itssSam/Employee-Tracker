@@ -1,5 +1,6 @@
-const inquirer = require('inquirer');
-const mysql = require('mysql2');
+// Require necessary pacakges
+const inquirer = require('inquirer'); // For user input prompts
+const mysql = require('mysql2'); // For MySQL database connection
 
 // Establish a connection to the database
 const db = mysql.createConnection({
@@ -12,10 +13,10 @@ const db = mysql.createConnection({
 db.connect((err) => {
     if (err) throw err;
     console.log('Connected to the employee tracker database.')
-    runEmployeeTracker();
+    runEmployeeTracker(); // Start the application
 });
 
-// Run the application
+// Function to run the employee tracker
 function runEmployeeTracker() {
     inquirer
         .prompt({
@@ -23,6 +24,7 @@ function runEmployeeTracker() {
             type: 'list',
             message: 'What would you like to do?',
             choices: [
+                // List of available actions for the user
                 'View all departments',
                 'View all roles',
                 'View all employees',
@@ -40,6 +42,7 @@ function runEmployeeTracker() {
             ]
         })
         .then((answer) => {
+            // Depending on the user's choice, call the appropriate function
             switch (answer.action) {
                 case 'View all departments':
                     viewAllDepartments();
@@ -91,28 +94,31 @@ function runEmployeeTracker() {
                     break;
 
                 case 'Exit':
-                    db.end();
+                    db.end(); // Close the database connection
                     break;
             }
         });
 }
 
+// Function to view all departments
 function viewAllDepartments() {
     db.query('SELECT * FROM department', (err, res) => {
         if (err) throw err;
-        console.table(res);
-        runEmployeeTracker();
+        console.table(res); // Display department data in a table
+        runEmployeeTracker(); // Return to the main menu
     });
 }
 
+// Function to view all roles 
 function viewAllRoles() {
     db.query('SELECT * FROM role', (err, res) => {
         if (err) throw err;
-        console.table(res);
-        runEmployeeTracker();
+        console.table(res); // Display role data in a table
+        runEmployeeTracker(); // Return to the main menu
     });
 }
 
+// Function to view all employees with additional information
 function viewAllEmployees() {
     const query = `
         SELECT employee.id, employee.first_name, employee.last_name, 
@@ -125,8 +131,8 @@ function viewAllEmployees() {
 
     db.query(query, (err, res) => {
         if (err) throw err;
-        console.table(res);
-        runEmployeeTracker();
+        console.table(res); // Display employee data in a table with additional information
+        runEmployeeTracker(); // Return to the main menu
     });
 }
 
@@ -143,7 +149,7 @@ function addDepartment() {
             db.query('INSERT INTO department SET ?', { name: answer.department }, (err, res) => {
                 if (err) throw err;
                 console.log('Department added.');
-                runEmployeeTracker();
+                runEmployeeTracker(); // Return to the main menu
             });
         });
 }
@@ -186,7 +192,7 @@ function addRole() {
                 }, (err, res) => {
                     if (err) throw err;
                     console.log('Role added.');
-                    runEmployeeTracker();
+                    runEmployeeTracker(); // Return to the main menu
                 });
             });
     });
@@ -246,58 +252,70 @@ function addEmployee() {
         })
         .catch(err => {
             console.error(err);
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         });
 }
 
+// Function to update an emplyee's role
 function updateEmployeeRole() {
     let employeesList;
     let rolesList;
-
+    // Retrieve a list of employees and roles dor user selection
     db.promise().query("SELECT id, CONCAT(first_name, ' ', last_name) AS name FROM employee")
         .then(([employees]) => {
-            employeesLsit = employees;
-            return db.promise().query("SELECT id, title FROM role");
+            if(employees && employees.length > 0) {
+                employeesList = employees;
+                return db.promise().query("SELECT id, title FROM role");
+            } else {
+                throw new Error("No employees found.");
+            }
         })
         .then(([roles]) => {
-            rolesList = roles;
-            return inquirer.prompt([
-                {
-                    name: 'employeeId',
-                    type: 'list',
-                    message: 'Which employee\'s role do you want to to update?',
-                    choices: employeesList.map(emp => ({ name: emp.name, value: emp.id }))
-                },
-
-                {
-                    name: 'roleId',
-                    type: 'list',
-                    message: 'Which is the new role?',
-                    choices: rolesList.map(role => ({ name: role.title, value: role.id }))
-                }
-            ]);
+            if (roles && roles.length > 0) {
+                rolesList = roles;
+                return inquirer.prompt([
+                    {
+                        name: 'employeeId',
+                        type: 'list',
+                        message: 'Which employee\'s role do you want to to update?',
+                        choices: employeesList.map(emp => ({ name: emp.name, value: emp.id }))
+                    },
+    
+                    {
+                        name: 'roleId',
+                        type: 'list',
+                        message: 'Which is the new role?',
+                        choices: rolesList.map(role => ({ name: role.title, value: role.id }))
+                    }
+                ]);
+            } else {
+                throw new Error("No roles found.");
+            }
         })
         .then(answer => {
+            // Update the employee's role in the database
             return db.promise().query("UPDATE employee SET role_id = ? WHERE id = ?", [answer.roleId, answer.employeeId]);
         })
         .then(() => {
             console.log('Employee role updated.');
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         })
         .catch(err => {
             console.error(err);
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         });
 }
 
+// Function to view employees by department
 function viewEmployeesByDepartment() {
     db.query("SELECT employee.first_name, employee.last_name, department.name AS department FROM employee JOIN role ON employee.role_id = role.id JOIN department ON role.department_id = department.id", (err, res) => {
         if (err) throw err;
-        console.table(res);
-        runEmployeeTracker();
+        console.table(res); // Displays employees by department in a table 
+        runEmployeeTracker(); // Return to the main menu
     });
 }
 
+// Function to view employees by manager
 function viewEmployeesByManager() {
     db.promise().query("SELECT id, CONCAT(first_name,' ', last_name) AS manager FROM employee WHERE manager_id IS NULL")
         .then(([managers]) => {
@@ -309,18 +327,20 @@ function viewEmployeesByManager() {
             });
         })
         .then(answer => {
+            // Retrieve employees managed by the selected manager
             return db.promise().query("SELECT first_name, last_name FROM employee WHERE manager_id = ?", [answer.managerId]);
         })
         .then(([employees]) => {
-            console.table(employees);
-            runEmployeeTracker();
+            console.table(employees); // Display employees managed by the selected mnanager in a table
+            runEmployeeTracker(); // Return to the main menu
         })
         .catch(err => {
             console.error(err);
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         });
 }
 
+// Function to delete a department
 function deleteDepartment() {
     db.promise().query("SELECT id, name FROM department")
         .then(([departments]) => {
@@ -332,18 +352,20 @@ function deleteDepartment() {
             })
         })
         .then(answer => {
+            // Delete the selected department from the database
             return db.promise().query("DELETE FROM department WHERE id = ?", [answer.departmentId]);
         })
         .then(() => {
             console.log('Department deleted.');
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         })
         .catch(err => {
             console.error(err);
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         });
 }
 
+// Function to delete a role
 function deleteRole() {
     db.promise().query("SELECT id, title FROM role")
         .then(([roles]) => {
@@ -355,18 +377,20 @@ function deleteRole() {
             });
         })
         .then(() => {
+            // Delete the selected role from the database
             return db.promise().query("DELETE FROM role WHERE id = ?", [answer.roleId]);
         })
         .then(() => {
             console.log('Role deleted.');
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         })
         .catch(err => {
             console.error(err);
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         });
 }
 
+// Function to delete an employee
 function deleteEmployee() {
     db.promise().query("SELECT id, CONCAT(first_name, ' ', last_name) AS name FROM employee")
         .then(([employees]) => {
@@ -378,18 +402,20 @@ function deleteEmployee() {
             });
         })
         .then(answer => {
+            // Delete the selected employee from the database
             return db.promise().query("DELETE FROM employee WHERE id = ?", [answer.employeeId]);
         })
         .then(() => {
             console.log('Employee deleted.');
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         })
         .catch(err => {
             console.error(err);
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         });
 }
 
+// Function to view the total utilized budget of a department
 function viewTotalUtilizedBudget() {
     db.promise().query("SELECT id, name FROM department")
         .then(([departments]) => {
@@ -413,15 +439,15 @@ function viewTotalUtilizedBudget() {
         })
         .then(([results]) => {
             if (results.length > 0) {
-                console.table(results);
+                console.table(results); // Display the total utilized budget for the selected department
             } else {
                 console.log('No employees found in this department.');
             }
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         })
         .catch(err => {
             console.error(err);
-            runEmployeeTracker();
+            runEmployeeTracker(); // Return to the main menu
         });
 }
 
